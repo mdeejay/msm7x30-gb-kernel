@@ -221,6 +221,11 @@ choice
                 bool "Vivo/Mecha Version"
                 help
                   Qualcomm MSM SPI support vivo/mecha version
+
+        config SPI_QSD_NEW_SAGA
+                bool "Saga Version"
+                help
+                  Qualcomm MSM SPI support saga version
 endchoice
 
 config SPI_QUP

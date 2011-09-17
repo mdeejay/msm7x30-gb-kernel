@@ -409,6 +409,7 @@ obj-$(CONFIG_TROUT_BATTCHG_DOCK) += htc_one_wire.o
 obj-$(CONFIG_TROUT_BATTCHG) += htc_battery_trout.o
 obj-$(CONFIG_HTC_BATTCHG) += htc_battery.o
 obj-$(CONFIG_HTC_BATTCHG_VIVO) += htc_battery_vivo.o
+obj-$(CONFIG_HTC_BATTCHG_SAGA) += htc_battery_vivo.o
 obj-$(CONFIG_HTC_BATT_CORE) += htc_battery_core.o
 obj-$(CONFIG_HTC_BATT8x60) += htc_battery_8x60.o
 obj-$(CONFIG_HTC_PWRSINK) += htc_pwrsink.o
