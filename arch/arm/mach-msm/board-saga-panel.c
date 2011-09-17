@@ -583,7 +583,7 @@ static struct platform_driver saga_backlight_driver = {
 static struct msm_mdp_platform_data mdp_pdata_hitachi = {
 		.overrides = MSM_MDP4_MDDI_DMA_SWITCH
 #ifdef CONFIG_OVERLAY_FORCE_UPDATE
-  | MSM_MDP_FORCE_UPDATE
+  	| MSM_MDP_FORCE_UPDATE
 #endif
   ,
 };
