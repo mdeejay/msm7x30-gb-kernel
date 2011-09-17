@@ -652,69 +652,68 @@ static ssize_t show_scaling_setspeed(struct cpufreq_policy *policy, char *buf)
 extern ssize_t acpuclk_get_vdd_levels_str(char *buf);
 static ssize_t show_vdd_levels(struct cpufreq_policy *policy, char *buf)
 {
-return acpuclk_get_vdd_levels_str(buf);
+	return acpuclk_get_vdd_levels_str(buf);
 }
 
 extern void acpuclk_set_vdd(unsigned acpu_khz, int vdd);
 static ssize_t store_vdd_levels(struct cpufreq_policy *policy, const char *buf, size_t count)
 {
-int i = 0, j;
-int pair[2] = { 0, 0 };
-int sign = 0;
+	int i = 0, j;
+	int pair[2] = { 0, 0 };
+	int sign = 0;
 
-if (count < 1)
-return 0;
+	if (count < 1)
+		return 0;
 
-if (buf[0] == '-')
-{
-sign = -1;
-i++;
-}
-else if (buf[0] == '+')
-{
-sign = 1;
-i++;
-}
+	if (buf[0] == '-')
+	{
+		sign = -1;
+		i++;
+	}
+	else if (buf[0] == '+')
+	{
+		sign = 1;
+		i++;
+	}
 
-for (j = 0; i < count; i++)
-{
-char c = buf[i];
-if ((c >= '0') && (c <= '9'))
-{
-pair[j] *= 10;
-pair[j] += (c - '0');
-}
-else if ((c == ' ') || (c == '\t'))
-{
-if (pair[j] != 0)
-{
-j++;
-if ((sign != 0) || (j > 1))
-break;
-}
-}
-else
-break;
-}
+	for (j = 0; i < count; i++)
+	{
+		char c = buf[i];
+		if ((c >= '0') && (c <= '9'))
+		{
+			pair[j] *= 10;
+			pair[j] += (c - '0');
+		}
+		else if ((c == ' ') || (c == '\t'))
+		{
+			if (pair[j] != 0)
+			{
+				j++;
+				if ((sign != 0) || (j > 1))
+					break;
+			}
+		}
+		else
+			break;
+	}
 
-if (sign != 0)
-{
-if (pair[0] > 0)
-acpuclk_set_vdd(0, sign * pair[0]);
-}
-else
-{
-if ((pair[0] > 0) && (pair[1] > 0))
-acpuclk_set_vdd((unsigned)pair[0], pair[1]);
-else
-return -EINVAL;
-}
+	if (sign != 0)
+	{
+		if (pair[0] > 0)
+			acpuclk_set_vdd(0, sign * pair[0]);
+	}
+	else
+	{
+		if ((pair[0] > 0) && (pair[1] > 0))
+			acpuclk_set_vdd((unsigned)pair[0], pair[1]);
+		else
+			return -EINVAL;
+	}
 
-return count;
+	return count;
 }
 
 #endif
-
 
 /**
  * show_scaling_driver - show the current cpufreq HW/BIOS limitation
@@ -745,6 +744,7 @@ cpufreq_freq_attr_rw(scaling_min_freq);
 cpufreq_freq_attr_rw(scaling_max_freq);
 cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
+
 #ifdef CONFIG_CPU_FREQ_VDD_LEVELS
 cpufreq_freq_attr_rw(vdd_levels);
 #endif
@@ -762,7 +762,7 @@ static struct attribute *default_attrs[] = {
 	&scaling_available_governors.attr,
 	&scaling_setspeed.attr,
 #ifdef CONFIG_CPU_FREQ_VDD_LEVELS
-&vdd_levels.attr,
+  &vdd_levels.attr,
 #endif
 	NULL
 };
@@ -1280,28 +1280,12 @@ static int __cpufreq_remove_dev(struct sys_device *sys_dev)
 		cpufreq_driver->exit(data);
 	unlock_policy_rwsem_write(cpu);
 
-	cpufreq_debug_enable_ratelimit();
-
-#ifdef CONFIG_HOTPLUG_CPU
-	/* when the CPU which is the parent of the kobj is hotplugged
-	 * offline, check for siblings, and create cpufreq sysfs interface
-	 * and symlinks
-	 */
-	if (unlikely(cpumask_weight(data->cpus) > 1)) {
-		/* first sibling now owns the new sysfs dir */
-		cpumask_clear_cpu(cpu, data->cpus);
-		cpufreq_add_dev(get_cpu_sysdev(cpumask_first(data->cpus)));
-
-		/* finally remove our own symlink */
-		lock_policy_rwsem_write(cpu);
-		__cpufreq_remove_dev(sys_dev);
-	}
-#endif
-
 	free_cpumask_var(data->related_cpus);
 	free_cpumask_var(data->cpus);
 	kfree(data);
+	per_cpu(cpufreq_cpu_data, cpu) = NULL;
 
+	cpufreq_debug_enable_ratelimit();
 	return 0;
 }
 
@@ -2093,3 +2077,4 @@ static int __init cpufreq_core_init(void)
 	return 0;
 }
 core_initcall(cpufreq_core_init);
+
