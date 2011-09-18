@@ -223,7 +223,7 @@ static unsigned int cpufreq_smartass_calc_freq(unsigned int cpu, struct cpufreq_
 	//printk(KERN_INFO "Smartass calc_freq: delta_time=%u cpu_load=%u\n",delta_time,cpu_load);
 	if (cpu_load < min_cpu_load) {
 		cpu_load += 100 - max_cpu_load; // dummy load.
-		new_freq = policy->cur * cpu_load / 73;
+		new_freq = policy->cur * cpu_load / 70;
 		if (max_ramp_down && new_freq < policy->cur - max_ramp_down)
 			new_freq = policy->cur - max_ramp_down;
 		//printk(KERN_INFO "Smartass calc_freq: %u => %u\n",policy->cur,new_freq);
