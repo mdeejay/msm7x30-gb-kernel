@@ -99,9 +99,9 @@ config CPU_FREQ_DEFAULT_GOV_SMARTASS
 	help
 	  Use the CPUFreq governor 'smartass' as default.
 
-config CPU_FREQ_DEFAULT_GOV_SMARTASS2
-	bool "smartass2"
-	select CPU_FREQ_GOV_SMARTASS2
+config CPU_FREQ_DEFAULT_GOV_VIRTUOUS
+	bool "virtuous"
+	select CPU_FREQ_GOV_VIRTUOUS
 	select CPU_FREQ_GOV_PERFORMANCE
 	help
 	  Use the CPUFreq governor 'smartass' as default.
@@ -189,11 +189,11 @@ config CPU_FREQ_GOV_SCARY
 
 		If in doubt, say N.
 
-config CPU_FREQ_GOV_SMARTASS2
-	tristate "'smartass2' cpufreq governor"
+config CPU_FREQ_GOV_VIRTUOUS
+	tristate "'virtuous' cpufreq governor"
 	depends on CPU_FREQ
 	help
-          smartass2' - a "slightly more agressive smart" optimized governor!
+          'virtuous' - a "slightly more agressive smart" optimized governor!
  
 	  If in doubt, say N.
 
