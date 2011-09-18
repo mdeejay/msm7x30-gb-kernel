@@ -1,5 +1,4 @@
-/*
-        Scary governor based off of conservatives source with some of smartasses features
+/*      Scary governor based off of conservatives source with some of smartasses features
         
         For devs - If you're going to port this driver to other devices, make sure to edit the default sleep frequencies & prev frequencies or else you might be going outside your devices hardware limits.
 */
@@ -28,9 +27,9 @@
 
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
 #define DEF_FREQUENCY_DOWN_THRESHOLD		(45)
-#define DEFAULT_SLEEP_MAX_FREQ 245760
-#define DEFAULT_SLEEP_MIN_FREQ 245760
-#define DEFAULT_SLEEP_PREV_FREQ 245760 //This is so that if there are any issues resulting in sleep_prev_freq getting set, there will be a backup freq
+#define DEFAULT_SLEEP_MAX_FREQ 245000
+#define DEFAULT_SLEEP_MIN_FREQ 245000
+#define DEFAULT_SLEEP_PREV_FREQ 245000 //This is so that if there are any issues resulting in sleep_prev_freq getting set, there will be a backup freq
 #define DEFAULT_PREV_MAX 2000000
 static unsigned int suspended;
 static unsigned int sleep_max_freq=DEFAULT_SLEEP_MAX_FREQ;
