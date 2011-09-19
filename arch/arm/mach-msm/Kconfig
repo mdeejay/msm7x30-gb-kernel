@@ -718,9 +718,14 @@ choice
 	    7x30 Version
 
 	config HTC_BATTCHG_VIVO
-	  bool "Vivo/Mecha Version"
+	  bool "Vivo/Vivow Version"
 	  help
-	    Vivo/Mecha Version
+	    Vivo/Vivow Version
+
+	config HTC_BATTCHG_SAGA
+	  bool "Saga Version"
+	  help
+	    Saga Version
 endchoice
 
 config HTC_BATT_CORE

@@ -85,9 +85,14 @@ choice
 		  tps65200 Driver 7x30 Version
 
 	config TPS65200_VIVO
-		bool "Vivo/Mecha Version"
+		bool "Vivo/Vivow Version"
 		help
-		  tps65200 Driver Vivo/Mecha Version
+		  tps65200 Driver Vivo/Vivow Version
+
+	config TPS65200_SAGA
+		bool "Saga Version"
+		help
+		  tps65200 Driver Saga Version
 endchoice
 
 config SENSORS_BMA150
