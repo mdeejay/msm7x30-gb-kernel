@@ -1274,6 +1274,8 @@ CONFIG_INPUT_ISL29028=y
 CONFIG_SPI=y
 # CONFIG_SPI_DEBUG is not set
 CONFIG_SPI_MASTER=y
+# CONFIG_I2C_MUX  is not set
+
 
 #
 # SPI Master Controller Drivers

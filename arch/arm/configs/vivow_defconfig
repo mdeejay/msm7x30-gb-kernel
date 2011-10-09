@@ -1295,6 +1295,8 @@ CONFIG_INPUT_CAPELLA_CM3628=y
 CONFIG_SPI=y
 # CONFIG_SPI_DEBUG is not set
 CONFIG_SPI_MASTER=y
+# CONFIG_I2C_MUX  is not set
+
 
 #
 # SPI Master Controller Drivers
