@@ -97,6 +97,10 @@ struct msm_vpe_phy_info {
        uint32_t frame_id;
 };
 
+#define VFE31_OUTPUT_MODE_PT (0x1 << 0)
+#define VFE31_OUTPUT_MODE_S (0x1 << 1)
+#define VFE31_OUTPUT_MODE_V (0x1 << 2)
+
 struct msm_vfe_phy_info {
 	uint32_t sbuf_phy;
 	uint32_t y_phy;
