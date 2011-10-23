@@ -1095,6 +1095,9 @@ static int vid_dec_ioctl(struct inode *inode, struct file *file,
 			vcd_set_buffer_requirements(client_ctx->vcd_handle,
 				VCD_BUFFER_OUTPUT, &buffer_req);
 			break;
+		case VCD_FRAME_IDR:
+			pic_type = PICTURE_TYPE_IDR;
+			break;
 		default:
 			vcd_status = VCD_ERR_BAD_POINTER;
 			break;

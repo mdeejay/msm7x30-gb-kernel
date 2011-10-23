@@ -1,174 +1,147 @@
-From 22b1da460ea32adefc8b473d737aa5e55d9c7eb3 Mon Sep 17 00:00:00 2001
+From e7009198c321e8e085c986a759714f2175cafe65 Mon Sep 17 00:00:00 2001
 From: LorD ClockaN <davor@losinj.com>
-Date: Sat, 8 Oct 2011 09:10:09 +0200
-Subject: [PATCH] ADD: CPUFREQ code from 36.1 (by Imoseyon)
+Date: Sun, 23 Oct 2011 07:52:44 +0200
+Subject: [PATCH] vidc: 720p: Add IDR Frame type support for H264 format -
+ CodeAurora
 
+Read IDR frame type from 720p core register set and
+propagate it to user space using new IDR frame type
+enumeration added in api header file. The IDR frame
+type info is used in SYNCFRAME logic for H264 format
+in userspace.
+
+CRs-Fixed: 296738
+Signed-off-by: Maheshwar Ajja <majja@codeaurora.org>
 ---
- drivers/cpufreq/cpufreq.c    |   18 +++++++++---------
- include/linux/cpufreq.h      |    5 -----
- include/trace/events/power.h |   27 +++++++++++++++------------
- 3 files changed, 24 insertions(+), 26 deletions(-)
+ .../msm/vidc/720p/ddl/vcd_ddl_interrupt_handler.c  |    6 ++++++
+ drivers/video/msm/vidc/720p/ddl/vidc.c             |    7 +++++--
+ drivers/video/msm/vidc/720p/ddl/vidc.h             |    9 +++++----
+ drivers/video/msm/vidc/common/dec/vdec.c           |    3 +++
+ drivers/video/msm/vidc/common/vcd/vcd_api.h        |    3 ++-
+ include/linux/msm_vidc_dec.h                       |    1 +
+ 6 files changed, 22 insertions(+), 7 deletions(-)
 
-diff --git a/drivers/cpufreq/cpufreq.c b/drivers/cpufreq/cpufreq.c
-index 4414b4c..d2f4af6 100644
---- a/drivers/cpufreq/cpufreq.c
-+++ b/drivers/cpufreq/cpufreq.c
-@@ -29,6 +29,8 @@
- #include <linux/completion.h>
- #include <linux/mutex.h>
+diff --git a/drivers/video/msm/vidc/720p/ddl/vcd_ddl_interrupt_handler.c b/drivers/video/msm/vidc/720p/ddl/vcd_ddl_interrupt_handler.c
+index 7d57033..397f74c 100644
+--- a/drivers/video/msm/vidc/720p/ddl/vcd_ddl_interrupt_handler.c
++++ b/drivers/video/msm/vidc/720p/ddl/vcd_ddl_interrupt_handler.c
+@@ -834,6 +834,12 @@ static u32 ddl_get_frame
+ 			frame->data_len = 0;
+ 			break;
+ 		}
++	case VIDC_720P_IDRFRAME:
++		{
++			frame->flags |= VCD_FRAME_FLAG_SYNCFRAME;
++			frame->frame = VCD_FRAME_IDR;
++			break;
++		}
+ 	default:
+ 		{
+ 			VIDC_LOG_STRING("CRITICAL-FRAMETYPE");
+diff --git a/drivers/video/msm/vidc/720p/ddl/vidc.c b/drivers/video/msm/vidc/720p/ddl/vidc.c
+index 65b5c06..eacfbca 100644
+--- a/drivers/video/msm/vidc/720p/ddl/vidc.c
++++ b/drivers/video/msm/vidc/720p/ddl/vidc.c
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
++/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+  *
+  * This program is free software; you can redistribute it and/or modify
+  * it under the terms of the GNU General Public License version 2 and
+@@ -764,7 +764,10 @@ void vidc_720p_decode_display_info(struct vidc_720p_dec_disp_info
+ 	disp_info->input_is_interlace =
+ 	    ((disp_info->input_frame & 0x4) >> 2);
  
-+#include <trace/events/power.h>
-+
- #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_CORE, \
- 						"cpufreq-core", msg)
- 
-@@ -68,7 +70,7 @@ static DEFINE_PER_CPU(int, cpufreq_policy_cpu);
- static DEFINE_PER_CPU(struct rw_semaphore, cpu_policy_rwsem);
- 
- #define lock_policy_rwsem(mode, cpu)					\
--int lock_policy_rwsem_##mode						\
-+static int lock_policy_rwsem_##mode					\
- (int cpu)								\
- {									\
- 	int policy_cpu = per_cpu(cpufreq_policy_cpu, cpu);		\
-@@ -83,26 +85,22 @@ int lock_policy_rwsem_##mode						\
+-	disp_info->input_frame &= 0x3;
++	if (disp_info->input_frame & 0x10)
++		disp_info->input_frame = VIDC_720P_IDRFRAME;
++	else
++		disp_info->input_frame &= 0x3;
  }
  
- lock_policy_rwsem(read, cpu);
--EXPORT_SYMBOL_GPL(lock_policy_rwsem_read);
+ void vidc_720p_decode_skip_frm_details(u32 *free_luma_dpb)
+diff --git a/drivers/video/msm/vidc/720p/ddl/vidc.h b/drivers/video/msm/vidc/720p/ddl/vidc.h
+index a67197e..03232b9 100644
+--- a/drivers/video/msm/vidc/720p/ddl/vidc.h
++++ b/drivers/video/msm/vidc/720p/ddl/vidc.h
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
++/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions are
+@@ -1990,7 +1990,7 @@ do { \
+ 	(VIDC_720P_WRAPPER_REG_BASE      + 0x00000ebc)
+ #define VIDC_REG_441270_PHYS                    \
+ 	(VIDC_720P_WRAPPER_REG_BASE_PHYS + 0x00000ebc)
+-#define VIDC_REG_441270_RMSK                           0xf
++#define VIDC_REG_441270_RMSK                          0x1f
+ #define VIDC_REG_441270_SHFT                             0
+ #define VIDC_REG_441270_IN                      \
+ 	in_dword_masked(VIDC_REG_441270_ADDR,  \
+@@ -2000,7 +2000,7 @@ do { \
+ #define VIDC_REG_441270_DATA_PARTITIONED_BMSK 0x8
+ #define VIDC_REG_441270_DATA_PARTITIONED_SHFT 0x3
  
- lock_policy_rwsem(write, cpu);
--EXPORT_SYMBOL_GPL(lock_policy_rwsem_write);
+-#define VIDC_REG_441270_FRAME_TYPE_BMSK                0x7
++#define VIDC_REG_441270_FRAME_TYPE_BMSK               0x17
+ #define VIDC_REG_441270_FRAME_TYPE_SHFT                  0
  
--void unlock_policy_rwsem_read(int cpu)
-+static void unlock_policy_rwsem_read(int cpu)
- {
- 	int policy_cpu = per_cpu(cpufreq_policy_cpu, cpu);
- 	BUG_ON(policy_cpu == -1);
- 	up_read(&per_cpu(cpu_policy_rwsem, policy_cpu));
- }
--EXPORT_SYMBOL_GPL(unlock_policy_rwsem_read);
- 
--void unlock_policy_rwsem_write(int cpu)
-+static void unlock_policy_rwsem_write(int cpu)
- {
- 	int policy_cpu = per_cpu(cpufreq_policy_cpu, cpu);
- 	BUG_ON(policy_cpu == -1);
- 	up_write(&per_cpu(cpu_policy_rwsem, policy_cpu));
- }
--EXPORT_SYMBOL_GPL(unlock_policy_rwsem_write);
- 
- 
- /* internal prototypes */
-@@ -354,6 +352,9 @@ void cpufreq_notify_transition(struct cpufreq_freqs *freqs, unsigned int state)
- 
- 	case CPUFREQ_POSTCHANGE:
- 		adjust_jiffies(CPUFREQ_POSTCHANGE, freqs);
-+		dprintk("FREQ: %lu - CPU: %lu", (unsigned long)freqs->new,
-+			(unsigned long)freqs->cpu);
-+		trace_power_frequency(POWER_PSTATE, freqs->new, freqs->cpu);
- 		srcu_notifier_call_chain(&cpufreq_transition_notifier_list,
- 				CPUFREQ_POSTCHANGE, freqs);
- 		if (likely(policy) && likely(policy->cpu == freqs->cpu))
-@@ -1950,8 +1951,7 @@ static int __cpuinit cpufreq_cpu_callback(struct notifier_block *nfb,
- 	return NOTIFY_OK;
- }
- 
--static struct notifier_block __refdata cpufreq_cpu_notifier =
--{
-+static struct notifier_block __refdata cpufreq_cpu_notifier = {
-     .notifier_call = cpufreq_cpu_callback,
+ #define VIDC_REG_724381_ADDR        \
+@@ -2300,7 +2300,8 @@ enum vidc_720p_frame {
+ 	VIDC_720P_NOTCODED = 0,
+ 	VIDC_720P_IFRAME = 1,
+ 	VIDC_720P_PFRAME = 2,
+-	VIDC_720P_BFRAME = 3
++	VIDC_720P_BFRAME = 3,
++	VIDC_720P_IDRFRAME = 4
  };
  
-diff --git a/include/linux/cpufreq.h b/include/linux/cpufreq.h
-index 2169883..77f8f00 100644
---- a/include/linux/cpufreq.h
-+++ b/include/linux/cpufreq.h
-@@ -196,11 +196,6 @@ extern int __cpufreq_driver_getavg(struct cpufreq_policy *policy,
- int cpufreq_register_governor(struct cpufreq_governor *governor);
- void cpufreq_unregister_governor(struct cpufreq_governor *governor);
+ enum vidc_720p_entropy_sel {
+diff --git a/drivers/video/msm/vidc/common/dec/vdec.c b/drivers/video/msm/vidc/common/dec/vdec.c
+index 9edbedc..82c4c47 100644
+--- a/drivers/video/msm/vidc/common/dec/vdec.c
++++ b/drivers/video/msm/vidc/common/dec/vdec.c
+@@ -282,6 +282,9 @@ static void vid_dec_output_frame_done(struct video_client_ctx *client_ctx,
+ 		case VCD_FRAME_NOTCODED:
+ 			pic_type = PICTURE_TYPE_SKIP;
+ 			break;
++		case VCD_FRAME_IDR:
++			pic_type = PICTURE_TYPE_IDR;
++			break;
+ 		default:
+ 			pic_type = PICTURE_TYPE_UNKNOWN;
+ 		}
+diff --git a/drivers/video/msm/vidc/common/vcd/vcd_api.h b/drivers/video/msm/vidc/common/vcd/vcd_api.h
+index f66f66a..4c98329 100644
+--- a/drivers/video/msm/vidc/common/vcd/vcd_api.h
++++ b/drivers/video/msm/vidc/common/vcd/vcd_api.h
+@@ -1,4 +1,4 @@
+-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
++/* Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+  *
+  * Redistribution and use in source and binary forms, with or without
+  * modification, are permitted provided that the following conditions are
+@@ -59,6 +59,7 @@ enum vcd_frame {
+ 	VCD_FRAME_P,
+ 	VCD_FRAME_B,
+ 	VCD_FRAME_NOTCODED,
++	VCD_FRAME_IDR,
+ 	VCD_FRAME_32BIT = 0x7fffffff
+ };
  
--int lock_policy_rwsem_read(int cpu);
--int lock_policy_rwsem_write(int cpu);
--void unlock_policy_rwsem_read(int cpu);
--void unlock_policy_rwsem_write(int cpu);
--
- 
- /*********************************************************************
-  *                      CPUFREQ DRIVER INTERFACE                     *
-diff --git a/include/trace/events/power.h b/include/trace/events/power.h
-index c4efe9b..35a2a6e 100644
---- a/include/trace/events/power.h
-+++ b/include/trace/events/power.h
-@@ -18,52 +18,55 @@ enum {
- 
- DECLARE_EVENT_CLASS(power,
- 
--	TP_PROTO(unsigned int type, unsigned int state),
-+	TP_PROTO(unsigned int type, unsigned int state, unsigned int cpu_id),
- 
--	TP_ARGS(type, state),
-+	TP_ARGS(type, state, cpu_id),
- 
- 	TP_STRUCT__entry(
- 		__field(	u64,		type		)
- 		__field(	u64,		state		)
-+		__field(	u64,		cpu_id		)
- 	),
- 
- 	TP_fast_assign(
- 		__entry->type = type;
- 		__entry->state = state;
-+		__entry->cpu_id = cpu_id;
- 	),
- 
--	TP_printk("type=%lu state=%lu", (unsigned long)__entry->type, (unsigned long)__entry->state)
-+	TP_printk("type=%lu state=%lu cpu_id=%lu", (unsigned long)__entry->type,
-+		(unsigned long)__entry->state, (unsigned long)__entry->cpu_id)
- );
- 
- DEFINE_EVENT(power, power_start,
- 
--	TP_PROTO(unsigned int type, unsigned int state),
-+	TP_PROTO(unsigned int type, unsigned int state, unsigned int cpu_id),
- 
--	TP_ARGS(type, state)
-+	TP_ARGS(type, state, cpu_id)
- );
- 
- DEFINE_EVENT(power, power_frequency,
- 
--	TP_PROTO(unsigned int type, unsigned int state),
-+	TP_PROTO(unsigned int type, unsigned int state, unsigned int cpu_id),
- 
--	TP_ARGS(type, state)
-+	TP_ARGS(type, state, cpu_id)
- );
- 
- TRACE_EVENT(power_end,
- 
--	TP_PROTO(int dummy),
-+	TP_PROTO(unsigned int cpu_id),
- 
--	TP_ARGS(dummy),
-+	TP_ARGS(cpu_id),
- 
- 	TP_STRUCT__entry(
--		__field(	u64,		dummy		)
-+		__field(	u64,		cpu_id		)
- 	),
- 
- 	TP_fast_assign(
--		__entry->dummy = 0xffff;
-+		__entry->cpu_id = cpu_id;
- 	),
- 
--	TP_printk("dummy=%lu", (unsigned long)__entry->dummy)
-+	TP_printk("cpu_id=%lu", (unsigned long)__entry->cpu_id)
- 
- );
+diff --git a/include/linux/msm_vidc_dec.h b/include/linux/msm_vidc_dec.h
+index bcceac0..a6094de 100644
+--- a/include/linux/msm_vidc_dec.h
++++ b/include/linux/msm_vidc_dec.h
+@@ -224,6 +224,7 @@ enum vdec_picture {
+ 	PICTURE_TYPE_B,
+ 	PICTURE_TYPE_BI,
+ 	PICTURE_TYPE_SKIP,
++	PICTURE_TYPE_IDR,
+ 	PICTURE_TYPE_UNKNOWN
+ };
  
 -- 
 1.7.5.4
-
 
