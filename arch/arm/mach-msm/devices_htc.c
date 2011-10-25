@@ -207,20 +207,15 @@ static struct resource msm_kgsl_resources[] = {
 
 #ifdef CONFIG_ARCH_MSM7X30
 static struct kgsl_platform_data kgsl_pdata = {
-#ifdef CONFIG_MSM_NPA_SYSTEM_BUS
-	/* NPA Flow IDs */
-	.high_axi_3d = MSM_AXI_FLOW_3D_GPU_HIGH,
-	.high_axi_2d = MSM_AXI_FLOW_2D_GPU_HIGH,
-#else
+
 	/* AXI rates in KHz */
-	.high_axi_3d = 192000,
+	.high_axi_3d = 299520,
 	.high_axi_2d = 192000,
-#endif
-	.max_grp2d_freq = 0,
-	.min_grp2d_freq = 0,
-	.set_grp2d_async = NULL, /* HW workaround, run Z180 SYNC @ 192 MHZ */
-	.max_grp3d_freq = 245760000,
-	.min_grp3d_freq = 192000000,
+	.max_grp2d_freq = 245760,
+	.min_grp2d_freq = 192000,
+	.set_grp2d_async = set_grp2d_async,
+	.max_grp3d_freq = 353280000,
+	.min_grp3d_freq = 299520000,
 	.set_grp3d_async = set_grp3d_async,
 	.imem_clk_name = "imem_clk",
 	.grp3d_clk_name = "grp_clk",
