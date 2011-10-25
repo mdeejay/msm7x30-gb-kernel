@@ -209,13 +209,13 @@ static struct resource msm_kgsl_resources[] = {
 static struct kgsl_platform_data kgsl_pdata = {
 
 	/* AXI rates in KHz */
-	.high_axi_3d = 299520,
+	.high_axi_3d = 192000,
 	.high_axi_2d = 192000,
 	.max_grp2d_freq = 245760,
 	.min_grp2d_freq = 192000,
 	.set_grp2d_async = set_grp2d_async,
 	.max_grp3d_freq = 353280000,
-	.min_grp3d_freq = 299520000,
+	.min_grp3d_freq = 192000000,
 	.set_grp3d_async = set_grp3d_async,
 	.imem_clk_name = "imem_clk",
 	.grp3d_clk_name = "grp_clk",
