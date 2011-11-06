@@ -81,6 +81,8 @@
 #include "msm_gemini_platform.h"
 #include "msm_gemini_common.h"
 
+static int release_buf;
+
 /*************** queue helper ****************/
 inline void msm_gemini_q_init(char const *name, struct msm_gemini_q *q_p)
 {
@@ -111,7 +113,7 @@ inline void *msm_gemini_q_out(struct msm_gemini_q *q_p)
 		data = q_entry_p->data;
 		kfree(q_entry_p);
 	} else {
-		GMN_PR_ERR("%s:%d] %s no entry\n", __func__, __LINE__,
+		GMN_DBG("%s:%d] %s no entry\n", __func__, __LINE__,
 			q_p->name);
 	}
 
@@ -237,7 +239,7 @@ int msm_gemini_framedone_irq(struct msm_gemini_device *pgmn_dev,
 {
 	int rc = 0;
 
-	GMN_DBG("%s:%d] Enter\n", __func__, __LINE__);
+	pr_info("[CAM] %s:%d] Enter\n", __func__, __LINE__);
 
 	if (buf_in) {
 		buf_in->vbuf.framedone_len = buf_in->framedone_len;
@@ -256,6 +258,8 @@ int msm_gemini_framedone_irq(struct msm_gemini_device *pgmn_dev,
 	if (buf_in)
 		rc = msm_gemini_q_wakeup(&pgmn_dev->evt_q);
 
+	pr_info("[CAM] %s:%d]\n", __func__, __LINE__);
+
 	return rc;
 }
 
@@ -265,13 +269,15 @@ int msm_gemini_evt_get(struct msm_gemini_device *pgmn_dev,
 	struct msm_gemini_core_buf *buf_p;
 	struct msm_gemini_ctrl_cmd ctrl_cmd;
 
-	GMN_DBG("%s:%d] Enter\n", __func__, __LINE__);
+	pr_info("[CAM] %s:%d] Enter\n", __func__, __LINE__);
 
 	msm_gemini_q_wait(&pgmn_dev->evt_q);
 	buf_p = msm_gemini_q_out(&pgmn_dev->evt_q);
 
+	pr_info("[CAM] %s after evt_q wait\n", __func__);
+
 	if (!buf_p) {
-		GMN_PR_ERR("%s:%d] no buffer\n", __func__, __LINE__);
+		GMN_DBG("%s:%d] no buffer\n", __func__, __LINE__);
 		return -EAGAIN;
 	}
 
@@ -330,7 +336,7 @@ int msm_gemini_we_pingpong_irq(struct msm_gemini_device *pgmn_dev,
 
 	GMN_DBG("%s:%d] Enter\n", __func__, __LINE__);
 	if (buf_in) {
-		GMN_DBG("%s:%d] 0x%08x %d\n", __func__, __LINE__,
+		pr_info("[CAM] %s:%d] 0x%08x %d\n", __func__, __LINE__,
 			(int) buf_in->y_buffer_addr, buf_in->y_len);
 		rc = msm_gemini_q_in_buf(&pgmn_dev->output_rtn_q, buf_in);
 	} else {
@@ -345,7 +351,9 @@ int msm_gemini_we_pingpong_irq(struct msm_gemini_device *pgmn_dev,
 		rc = msm_gemini_core_we_buf_update(buf_out);
 		kfree(buf_out);
 	} else {
-		GMN_PR_ERR("%s:%d] no output buffer\n", __func__, __LINE__);
+		if (buf_in)
+			msm_gemini_core_we_buf_reset(buf_in);
+		GMN_DBG("%s:%d] no output buffer\n", __func__, __LINE__);
 		rc = -2;
 	}
 
@@ -366,7 +374,7 @@ int msm_gemini_output_get(struct msm_gemini_device *pgmn_dev, void __user *to)
 	buf_p = msm_gemini_q_out(&pgmn_dev->output_rtn_q);
 
 	if (!buf_p) {
-		GMN_PR_ERR("%s:%d] no output buffer return\n",
+		GMN_DBG("%s:%d] no output buffer return\n",
 			__func__, __LINE__);
 		return -EAGAIN;
 	}
@@ -375,8 +383,8 @@ int msm_gemini_output_get(struct msm_gemini_device *pgmn_dev, void __user *to)
 	msm_gemini_platform_p2v(buf_p->file);
 	kfree(buf_p);
 
-	GMN_DBG("%s:%d] 0x%08x %d\n", __func__, __LINE__,
-		(int) buf_cmd.vaddr, buf_cmd.y_len);
+	pr_info("[CAM] %s:%d] vaddr=0x%08x y_len=%d paddr=0x%08x\n", __func__, __LINE__,
+		(int) buf_cmd.vaddr, buf_cmd.y_len, (int) buf_p->y_buffer_addr);
 
 	if (copy_to_user(to, &buf_cmd, sizeof(buf_cmd))) {
 		GMN_PR_ERR("%s:%d]", __func__, __LINE__);
@@ -411,11 +419,11 @@ int msm_gemini_output_buf_enqueue(struct msm_gemini_device *pgmn_dev,
 		return -1;
 	}
 
-	GMN_DBG("%s:%d] 0x%08x %d\n", __func__, __LINE__, (int) buf_cmd.vaddr,
-		buf_cmd.y_len);
-
 	buf_p->y_buffer_addr = msm_gemini_platform_v2p(buf_cmd.fd,
-		buf_cmd.y_len, &buf_p->file);
+		buf_cmd.y_len, &buf_p->file) + buf_cmd.phy_offset;
+	pr_info("[CAM] %s:%d] vaddr=0x%08x y_len=%d paddr=0x%08x\n", __func__, __LINE__,
+		(int) buf_cmd.vaddr, buf_cmd.y_len, (int) buf_p->y_buffer_addr);
+
 	if (!buf_p->y_buffer_addr) {
 		GMN_PR_ERR("%s:%d] v2p wrong\n", __func__, __LINE__);
 		kfree(buf_p);
@@ -438,7 +446,7 @@ int msm_gemini_fe_pingpong_irq(struct msm_gemini_device *pgmn_dev,
 
 	GMN_DBG("%s:%d] Enter\n", __func__, __LINE__);
 	if (buf_in) {
-		GMN_DBG("%s:%d] 0x%08x %d\n", __func__, __LINE__,
+		pr_info("[CAM] %s:%d] 0x%08x %d\n", __func__, __LINE__,
 			(int) buf_in->y_buffer_addr, buf_in->y_len);
 		rc = msm_gemini_q_in_buf(&pgmn_dev->input_rtn_q, buf_in);
 	} else {
@@ -454,7 +462,7 @@ int msm_gemini_fe_pingpong_irq(struct msm_gemini_device *pgmn_dev,
 		kfree(buf_out);
 		msm_gemini_core_fe_start();
 	} else {
-		GMN_PR_ERR("%s:%d] no input buffer\n", __func__, __LINE__);
+		GMN_DBG("%s:%d] no input buffer\n", __func__, __LINE__);
 		rc = -2;
 	}
 
@@ -474,7 +482,7 @@ int msm_gemini_input_get(struct msm_gemini_device *pgmn_dev, void __user * to)
 	buf_p = msm_gemini_q_out(&pgmn_dev->input_rtn_q);
 
 	if (!buf_p) {
-		GMN_PR_ERR("%s:%d] no input buffer return\n",
+		GMN_DBG("%s:%d] no input buffer return\n",
 			__func__, __LINE__);
 		return -EAGAIN;
 	}
@@ -483,8 +491,8 @@ int msm_gemini_input_get(struct msm_gemini_device *pgmn_dev, void __user * to)
 	msm_gemini_platform_p2v(buf_p->file);
 	kfree(buf_p);
 
-	GMN_DBG("%s:%d] 0x%08x %d\n", __func__, __LINE__,
-		(int) buf_cmd.vaddr, buf_cmd.y_len);
+	pr_info("[CAM] %s:%d] vaddr=0x%08x y_len=%d paddr=0x%08x\n", __func__, __LINE__,
+		(int) buf_cmd.vaddr, buf_cmd.y_len, (int) buf_p->y_buffer_addr);
 
 	if (copy_to_user(to, &buf_cmd, sizeof(buf_cmd))) {
 		GMN_PR_ERR("%s:%d]\n", __func__, __LINE__);
@@ -518,11 +526,11 @@ int msm_gemini_input_buf_enqueue(struct msm_gemini_device *pgmn_dev,
 		return -1;
 	}
 
-	GMN_DBG("%s:%d] 0x%08x %d\n", __func__, __LINE__,
-		(int) buf_cmd.vaddr, buf_cmd.y_len);
-
 	buf_p->y_buffer_addr    = msm_gemini_platform_v2p(buf_cmd.fd,
-		buf_cmd.y_len + buf_cmd.cbcr_len, &buf_p->file);
+		buf_cmd.y_len + buf_cmd.cbcr_len, &buf_p->file) + buf_cmd.phy_offset;
+	pr_info("[CAM] %s:%d] vaddr=0x%08x y_len=%d paddr=0x%08x\n", __func__, __LINE__,
+		(int) buf_cmd.vaddr, buf_cmd.y_len, (int) buf_p->y_buffer_addr);
+
 	buf_p->y_len          = buf_cmd.y_len;
 
 	buf_p->cbcr_buffer_addr = buf_p->y_buffer_addr + buf_cmd.y_len;
@@ -625,7 +633,7 @@ int __msm_gemini_release(struct msm_gemini_device *pgmn_dev)
 	pgmn_dev->open_count--;
 	mutex_unlock(&pgmn_dev->lock);
 
-	msm_gemini_core_release();
+	msm_gemini_core_release(release_buf);
 	msm_gemini_q_cleanup(&pgmn_dev->evt_q);
 	msm_gemini_q_cleanup(&pgmn_dev->output_rtn_q);
 	msm_gemini_outbuf_q_cleanup(&pgmn_dev->output_buf_q);
@@ -713,10 +721,12 @@ int msm_gemini_ioctl_hw_cmds(struct msm_gemini_device *pgmn_dev,
 int msm_gemini_start(struct msm_gemini_device *pgmn_dev, void * __user arg)
 {
 	struct msm_gemini_core_buf *buf_out;
+	struct msm_gemini_core_buf *buf_out_free[2] = {NULL, NULL};
 	int i, rc;
 
-	GMN_DBG("%s:%d] Enter\n", __func__, __LINE__);
+	pr_info("[CAM] %s:%d] Enter\n", __func__, __LINE__);
 
+	release_buf = 1;
 	for (i = 0; i < 2; i++) {
 		buf_out = msm_gemini_q_out(&pgmn_dev->input_buf_q);
 
@@ -730,11 +740,18 @@ int msm_gemini_start(struct msm_gemini_device *pgmn_dev, void * __user arg)
 	}
 
 	for (i = 0; i < 2; i++) {
-		buf_out = msm_gemini_q_out(&pgmn_dev->output_buf_q);
+		buf_out_free[i] = msm_gemini_q_out(&pgmn_dev->output_buf_q);
 
-		if (buf_out) {
-			msm_gemini_core_we_buf_update(buf_out);
-			kfree(buf_out);
+		if (buf_out_free[i]) {
+			msm_gemini_core_we_buf_update(buf_out_free[i]);
+		} else if (i == 1) {
+			/* set the pong to same address as ping */
+			buf_out_free[0]->y_len >>= 1;
+			buf_out_free[0]->y_buffer_addr +=
+				buf_out_free[0]->y_len;
+			msm_gemini_core_we_buf_update(buf_out_free[0]);
+			/* since ping and pong are same buf release only once*/
+			release_buf = 0;
 		} else {
 			GMN_PR_ERR("%s:%d] no output buffer\n",
 			__func__, __LINE__);
@@ -742,8 +759,11 @@ int msm_gemini_start(struct msm_gemini_device *pgmn_dev, void * __user arg)
 		}
 	}
 
+	for (i = 0; i < 2; i++)
+		kfree(buf_out_free[i]);
+
 	rc = msm_gemini_ioctl_hw_cmds(pgmn_dev, arg);
-	GMN_DBG("%s:%d]\n", __func__, __LINE__);
+	pr_info("[CAM] %s:%d]\n", __func__, __LINE__);
 	return rc;
 }
 

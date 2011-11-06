@@ -176,6 +176,10 @@ static struct msm_camera_io_ext camio_ext;
 static struct resource *camifpadio, *csiio;
 void __iomem *camifpadbase, *csibase;
 
+static uint8_t csi_irq_debug = false;
+static uint8_t csi_irq_debug_cnt = 0;
+#define  csi_irq_debug_max_cnt 200
+
 void msm_io_w(u32 data, void __iomem *addr)
 {
 	/*CDBG("%s: %08x %08x\n", __func__, (int) (addr), (data));*/
@@ -258,7 +262,7 @@ int msm_camio_clk_enable(enum msm_camio_clk_type clktype)
 {
 	int rc = 0;
 	struct clk *clk = NULL;
-
+	pr_info("[CAM] %s clktype:%d",__func__,clktype);
 	switch (clktype) {
 	case CAMIO_VFE_MDC_CLK:
 		camio_vfe_mdc_clk =
@@ -475,8 +479,17 @@ int msm_camio_jpeg_clk_disable(void)
 
 static irqreturn_t msm_io_csi_irq(int irq_num, void *data)
 {
-	uint32_t irq;
+	uint32_t irq, irq2;
 	irq = msm_io_r(csibase + MIPI_INTERRUPT_STATUS);
+	irq2 = msm_io_r(csibase + 0x5C);
+
+	if(csi_irq_debug == true && csi_irq_debug_cnt < csi_irq_debug_max_cnt){
+		csi_irq_debug_cnt ++ ;
+		pr_info("[CAM] %s irq, count  = %d \n", __func__, csi_irq_debug_cnt);
+		pr_info("[CAM] %s irq  MIPI_INTERRUPT_STATUS = 0x%x\n", __func__, irq);
+		pr_info("[CAM] %s irq2 MIPI_INTERRUPT_STATUS = 0x%x\n", __func__, irq2);
+	}
+
 	CDBG("%s MIPI_INTERRUPT_STATUS = 0x%x\n", __func__, irq);
 
 	if (irq & MIPI_IMASK_ERROR_OCCUR) {
@@ -537,7 +550,8 @@ int msm_camio_enable(struct platform_device *pdev)
 
 	camio_ext = camdev->ioext;
 
-	camdev->camera_gpio_on();
+	/*suggest per-sensor driver to config*/
+	//camdev->camera_gpio_on();
 
 	msm_camio_clk_enable(CAMIO_VFE_PBDG_CLK);
 	msm_camio_clk_enable(CAMIO_CAMIF_PAD_PBDG_CLK);
@@ -573,7 +587,7 @@ int msm_camio_enable(struct platform_device *pdev)
 			goto csi_busy;
 		}
 		rc = request_irq(camio_ext.csiirq, msm_io_csi_irq,
-			IRQF_TRIGGER_RISING, "csi", 0);
+			IRQF_TRIGGER_HIGH, "csi", 0);
 		if (rc < 0)
 			goto csi_irq_fail;
 		/* enable required clocks for CSI */
@@ -725,10 +739,12 @@ void msm_camio_clk_sel(enum msm_camio_clk_src_type srctype)
 }
 int msm_camio_probe_on(struct platform_device *pdev)
 {
+#if 0
+	/*suggest per-sensor driver to config*/
 	struct msm_camera_sensor_info *sinfo = pdev->dev.platform_data;
 	struct msm_camera_device_platform_data *camdev = sinfo->pdata;
 	camdev->camera_gpio_on();
-
+#endif
 	return msm_camio_clk_enable(CAMIO_CAM_MCLK_CLK);
 }
 
@@ -744,12 +760,21 @@ int msm_camio_read_camif_status(void)
 {
 	return msm_io_r(camifpadbase + 0x4);
 }
+
+void msm_camio_disable_csi_log(void)
+{
+	pr_info("msm_camio_disable_csi_log");
+	csi_irq_debug = false;
+	csi_irq_debug_cnt = 0;
+}
+
 int msm_camio_csi_config(struct msm_camera_csi_params *csi_params)
 {
 	int rc = 0;
 	uint32_t val = 0;
 
 	CDBG("msm_camio_csi_config \n");
+	csi_irq_debug = true;
 
 	/* SOT_ECC_EN enable error correction for SYNC (data-lane) */
 	msm_io_w(0x4, csibase + MIPI_PHY_CONTROL);
@@ -788,9 +813,17 @@ int msm_camio_csi_config(struct msm_camera_csi_params *csi_params)
 	CDBG("%s MIPI_PHY_D0_CONTROL2 val=0x%x\n", __func__, val);
 	msm_io_w(val, csibase + MIPI_PHY_D0_CONTROL2);
 	msm_io_w(val, csibase + MIPI_PHY_D1_CONTROL2);
-	msm_io_w(val, csibase + MIPI_PHY_D2_CONTROL2);
-	msm_io_w(val, csibase + MIPI_PHY_D3_CONTROL2);
 
+/*HTC_START Chris 20110802*/
+/*Disable MIPI lane2,lane3 if not in use*/
+	if (csi_params->lane_cnt > 2) {
+		msm_io_w(val, csibase + MIPI_PHY_D2_CONTROL2);
+		msm_io_w(val, csibase + MIPI_PHY_D3_CONTROL2);
+	} else {
+		msm_io_w(0x00000000, csibase + MIPI_PHY_D2_CONTROL2);
+		msm_io_w(0x00000000, csibase + MIPI_PHY_D3_CONTROL2);
+	}
+/*HTC_END*/
 
 	val = (0x0F << MIPI_PHY_CL_CONTROL_HS_TERM_IMP_SHFT) |
 		(0x1 << MIPI_PHY_CL_CONTROL_LP_REC_EN_SHFT);
@@ -830,9 +863,10 @@ int msm_camio_csi_config(struct msm_camera_csi_params *csi_params)
 
 	/* mask out ID_ERROR[19], DATA_CMM_ERR[11]
 	and CLK_CMM_ERR[10] - de-featured */
-	msm_io_w(0xFFF7F3FF, csibase + MIPI_INTERRUPT_MASK);
+	msm_io_w(0xfffff3c0, csibase + MIPI_INTERRUPT_MASK);
+
 	/*clear IRQ bits*/
-	msm_io_w(0xFFF7F3FF, csibase + MIPI_INTERRUPT_STATUS);
+	msm_io_w(0xfffff3c0, csibase + MIPI_INTERRUPT_STATUS);
 
 	return rc;
 }

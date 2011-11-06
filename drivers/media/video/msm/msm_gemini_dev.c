@@ -94,11 +94,11 @@ static int msm_gemini_open(struct inode *inode, struct file *filp)
 		struct msm_gemini_device, cdev);
 	filp->private_data = pgmn_dev;
 
-	GMN_DBG("%s:%d]\n", __func__, __LINE__);
+	pr_info("[CAM] %s:%d]\n", __func__, __LINE__);
 
 	rc = __msm_gemini_open(pgmn_dev);
 
-	GMN_DBG(KERN_INFO "%s:%d] %s open_count = %d\n", __func__, __LINE__,
+	printk(KERN_INFO "[CAM] %s:%d] %s open_count = %d\n", __func__, __LINE__,
 		filp->f_path.dentry->d_name.name, pgmn_dev->open_count);
 
 	return rc;
@@ -110,11 +110,11 @@ static int msm_gemini_release(struct inode *inode, struct file *filp)
 
 	struct msm_gemini_device *pgmn_dev = filp->private_data;
 
-	GMN_DBG(KERN_INFO "%s:%d]\n", __func__, __LINE__);
+	printk(KERN_INFO "[CAM] %s:%d]\n", __func__, __LINE__);
 
 	rc = __msm_gemini_release(pgmn_dev);
 
-	GMN_DBG(KERN_INFO "%s:%d] %s open_count = %d\n", __func__, __LINE__,
+	printk(KERN_INFO "[CAM] %s:%d] %s open_count = %d\n", __func__, __LINE__,
 		filp->f_path.dentry->d_name.name, pgmn_dev->open_count);
 	return rc;
 }
